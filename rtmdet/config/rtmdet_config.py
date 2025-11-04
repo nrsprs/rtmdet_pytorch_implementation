@@ -36,7 +36,7 @@ class RTMDetConfig(BaseModel):
         description="Number of convolution blocks in each classification/regression tower",
     )
     num_classes: PositiveInt = Field(80, description="Number of classes")
-    input_size: PositiveInt = Field(
+    img_size: PositiveInt = Field(
         640, description="Input image size (assumes a square input)"
     )
     # ---- Post-processing ----

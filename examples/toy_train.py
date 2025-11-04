@@ -108,7 +108,12 @@ def main():
 
     train_loader = DataLoader(train_ds, cfg.batch_size, True)
 
-    model = RTMDet.from_preset("small", 2)
+    model = RTMDet.from_preset(
+        name="small",
+        img_size=cfg.img_size,
+        num_classes=2,
+        pretrained=True,
+    )
     model.to(device)
 
     optim = torch.optim.AdamW(
