@@ -165,6 +165,10 @@ class RTMDet(nn.Module):
             x1, y1, x2, y2 = bbox.tolist()
             x1, y1 = min(x1, x2), min(y1, y2)
             x2, y2 = max(x1, x2), max(y1, y2)
+            # Scale bboxes from model img_size to the original image size
+            w, h = img.size
+            x1, x2 = x1 / self.cfg.img_size * w, x2 / self.cfg.img_size * w
+            y1, y2 = y1 / self.cfg.img_size * h, y2 / self.cfg.img_size * h
             color = colors[cls.item() % len(colors)]
             draw.rectangle([x1, y1, x2, y2], outline=color, width=2)
             draw.text((x1 + 4, y1 + 4), f"cls {cls.item()} {score:.2f}", fill=color)
