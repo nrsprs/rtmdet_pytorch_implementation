@@ -30,7 +30,8 @@ class RTMDetConfig(BaseModel):
         256,
         description="Number of channels of the output convolution layers in the PAFPN module",
     )
-    # ---- Head ---
+    # ---- Head ----
+    exp_on_reg: bool = Field(True, description="Apply exp() to bbox predictions before stride multiplication. False for tiny/small, True for medium/large.")
     head_num_levels: PositiveInt = Field(
         3,
         ge=1,

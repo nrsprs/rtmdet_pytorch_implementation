@@ -61,7 +61,7 @@ class RTMDet(nn.Module):
         if pretrained:
             model._load_pretrained_weights(name)
 
-        return model.to(cls._default_device()).to(cls._default_device())
+        return model.to(cls._default_device())
 
     def _load_pretrained_weights(self, name: PresetName) -> None:
         url = _PRETRAINED_URLS[name]
@@ -139,7 +139,7 @@ class RTMDet(nn.Module):
             cx, cy = self._grid_centers[level_idx]
             cx, cy = cx.to(bbox_pred.device), cy.to(bbox_pred.device)
 
-            distances = torch.clamp(bbox_pred, min=0) * stride  # [B, 4, H, W]
+            distances = (torch.exp(torch.clamp(bbox_pred, min=0)) if self.cfg.exp_on_reg else torch.clamp(bbox_pred, min=0)) * stride  # [B, 4, H, W]
             points = torch.stack([cx, cy], dim=-1).unsqueeze(0).expand(
                 distances.shape[0], -1, -1, -1
             )
@@ -227,7 +227,7 @@ class RTMDet(nn.Module):
             cx, cy = cx.to(device), cy.to(device)
 
             # Decode raw distances: clamp(≥0) * stride -> pixel distances [B, 4, H, W]
-            distances = torch.clamp(bbox_pred, min=0) * stride
+            distances = (torch.exp(torch.clamp(bbox_pred, min=0)) if self.cfg.exp_on_reg else torch.clamp(bbox_pred, min=0)) * stride
 
             # Build points [1, H, W, 2] and distances [B, H, W, 4]
             points = torch.stack([cx, cy], dim=-1).unsqueeze(0)

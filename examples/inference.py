@@ -2,8 +2,8 @@ from rtmdet import RTMDet
 
 
 def main() -> None:
-    model = RTMDet.from_preset("small", pretrained=True)
-    model.cfg.score_threshold = 0.6
+    model = RTMDet.from_preset("large", pretrained=True)
+    model.cfg.score_threshold = 0.7
 
     image_path = "examples/assets/city.png"
     bboxes, scores, classes = model.predict(image_path)

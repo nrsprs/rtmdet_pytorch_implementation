@@ -1,2 +1,3 @@
 deepen_factor: 0.33
 widen_factor: 0.5
+exp_on_reg: false
