@@ -59,12 +59,6 @@ class RTMDetHead(nn.Module):
         self.rtm_cls: nn.ModuleList = nn.ModuleList(rtm_cls)
         self.rtm_reg: nn.ModuleList = nn.ModuleList(rtm_reg)
 
-        # share convolution weights across levels: all towers reuse level-0 convs
-        for i in range(cfg.head_num_levels):
-            for j in range(cfg.head_num_stacked_convs):
-                self.cls_convs[i][j].conv = self.cls_convs[0][j].conv  # type: ignore[index]
-                self.reg_convs[i][j].conv = self.reg_convs[0][j].conv  # type: ignore[index]
-
     def forward(self, x: Tuple[Tensor, ...]) -> Tuple[List[Tensor], ...]:
         """ """
         cls_scores, bbox_preds = [], []

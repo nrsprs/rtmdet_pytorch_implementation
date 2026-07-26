@@ -57,8 +57,8 @@ class RTMDet(nn.Module):
         full_sd = load_mmdet_checkpoint(str(checkpoint_path), map_location="cpu")
 
         backbone_sd = extract_sub_state_dict(full_sd, "backbone.")
-        neck_sd = extract_sub_state_dict(full_sd, "necks.")
-        head_sd = extract_sub_state_dict(full_sd, "bboxes_head.")
+        neck_sd = extract_sub_state_dict(full_sd, "neck.")
+        head_sd = extract_sub_state_dict(full_sd, "bbox_head.")
 
         _safe_load_state_dict(self.backbone, backbone_sd)
         _safe_load_state_dict(self.neck, neck_sd)

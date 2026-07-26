@@ -17,7 +17,7 @@ class CSPNextBlock(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         residual = x
         out = self.conv1(x)
-        out = self.conv2(x)
+        out = self.conv2(out)
 
         if self.add:
             out = out + residual
