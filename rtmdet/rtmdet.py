@@ -6,7 +6,6 @@ from torch import Tensor, nn
 from torchvision.ops import nms
 
 from rtmdet.backbone import CSPNext
-from rtmdet.utils import distance2bbox, generate_grid_centers
 from rtmdet.checkpoint_utils import (
     _download_if_needed,
     _safe_load_state_dict,
@@ -18,6 +17,7 @@ from rtmdet.constants import _PRETRAINED_URLS
 from rtmdet.head import RTMDetHead
 from rtmdet.neck import CSPNeXtPAFPN
 from rtmdet.typings import PresetName
+from rtmdet.utils import distance2bbox, generate_grid_centers
 
 
 class RTMDet(nn.Module):
@@ -28,7 +28,7 @@ class RTMDet(nn.Module):
         self.neck = CSPNeXtPAFPN(cfg)
         self.head = RTMDetHead(cfg)
         # Cache grid centers for bbox decoding (computed once, moved to device at inference)
-        self._grid_centers = generate_grid_centers(cfg.img_size, cfg.prior_strides, "cpu")
+        self._grid_centers = generate_grid_centers(cfg.img_size, cfg.prior_strides, torch.device("cpu"))
 
     @classmethod
     def from_preset(
@@ -100,7 +100,7 @@ class RTMDet(nn.Module):
 
     def __call__(
         self, image_input: str | Tensor, return_logits: bool = False
-    ) -> tuple[Tensor, Tensor, Tensor] | tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor] | tuple[list[Tensor], list[Tensor]] | tuple[Tensor, Tensor, Tensor, Tensor]:
         if isinstance(image_input, str):
             return self._inference_from_path(image_input)
 

@@ -90,5 +90,5 @@ def _download_if_needed(url: str) -> Path:
     if dst.exists():
         return dst
 
-    torch.hub.download_url_to_file(url, dst)
+    torch.hub.download_url_to_file(url, str(dst))
     return dst

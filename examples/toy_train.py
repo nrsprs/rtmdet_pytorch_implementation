@@ -8,16 +8,14 @@
 
 import random
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 from PIL import Image, ImageDraw
-from torch import Tensor
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision.ops import box_iou, complete_box_iou_loss
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from rtmdet import RTMDet
 
@@ -33,7 +31,7 @@ class ShapesDataset(Dataset):
         self.img_size = img_size
         self.rng = random.Random(seed)
 
-    def _rand_box(self) -> Tuple[int, ...]:
+    def _rand_box(self) -> tuple[int, ...]:
         s = self.img_size
         rng = self.rng
 
@@ -47,7 +45,7 @@ class ShapesDataset(Dataset):
     def __len__(self) -> int:
         return self.n
 
-    def __getitem__(self, _: int) -> Tuple[Tensor, Dict[str, Tensor]]:
+    def __getitem__(self, index: int) -> tuple[Tensor, dict[str, Tensor]]:
         img = Image.new("RGB", (self.img_size, self.img_size), (0, 0, 0))
         draw = ImageDraw.Draw(img)
 
@@ -92,7 +90,7 @@ def best_iou_idx(
     finds, for each image in a batch, the predicted bounding box that has the
     highest IoU
     """
-    B, N, _ = pred_boxes.shape
+    B, _, _ = pred_boxes.shape
     out = []
     for b in range(B):
         ious = box_iou(pred_boxes[b], gt_boxes[b].view(1, 4)).squeeze(-1)
@@ -132,7 +130,7 @@ def main():
 
             optim.zero_grad(set_to_none=True)
 
-            pred_boxes, _, _, pred_logits = model(imgs, return_logits=True)
+            pred_boxes, _, _, pred_logits = model(imgs, return_logits=True)  # type: ignore
 
             B = pred_boxes.shape[0]
 

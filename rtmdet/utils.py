@@ -1,6 +1,7 @@
+from typing import overload
+
 import torch
 from torch import Tensor
-from typing import overload
 
 
 @overload
@@ -22,7 +23,7 @@ def apply_factor(values, factor: float):
 def generate_grid_centers(
     img_size: int,
     strides: list[int],
-    device: torch.device = torch.device("cpu"),
+    device: torch.device = torch.device("cpu"),  # noqa: B008
 ) -> list[tuple[Tensor, Tensor]]:
     """Generate grid center coordinates for each pyramid level.
 

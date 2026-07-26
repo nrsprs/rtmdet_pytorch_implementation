@@ -62,13 +62,13 @@ class RTMDetHead(nn.Module):
         for i, feat in enumerate(x):
             # ---- classification path ----
             cls_feat = feat
-            for layer in self.cls_convs[i]:  # type: ignore[attr-defined]
+            for layer in self.cls_convs[i]:  # type: ignore
                 cls_feat = layer(cls_feat)
             cls_scores.append(self.rtm_cls[i](cls_feat))
 
             # ---- regression path ----
             reg_feat = feat
-            for layer in self.reg_convs[i]:  # type: ignore[attr-defined]
+            for layer in self.reg_convs[i]:  # type: ignore
                 reg_feat = layer(reg_feat)
             bbox_preds.append(self.rtm_reg[i](reg_feat))
 
