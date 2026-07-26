@@ -39,6 +39,10 @@ class RTMDetConfig(BaseModel):
     img_size: PositiveInt = Field(
         640, description="Input image size (assumes a square input)"
     )
+    prior_strides: list[int] = Field(
+        [8, 16, 32],
+        description="Downsample strides of the feature pyramid levels (e.g., [8, 16, 32] for P3-P5)",
+    )
     # ---- Post-processing ----
     score_threshold: float = Field(
         0.001,

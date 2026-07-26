@@ -6,6 +6,7 @@ from torch import Tensor, nn
 from torchvision.ops import nms
 
 from rtmdet.backbone import CSPNext
+from rtmdet.utils import distance2bbox, generate_grid_centers
 from rtmdet.checkpoint_utils import (
     _download_if_needed,
     _safe_load_state_dict,
@@ -26,6 +27,8 @@ class RTMDet(nn.Module):
         self.backbone = CSPNext(cfg)
         self.neck = CSPNeXtPAFPN(cfg)
         self.head = RTMDetHead(cfg)
+        # Cache grid centers for bbox decoding (computed once, moved to device at inference)
+        self._grid_centers = generate_grid_centers(cfg.img_size, cfg.prior_strides, "cpu")
 
     @classmethod
     def from_preset(
@@ -72,11 +75,27 @@ class RTMDet(nn.Module):
         if not return_logits:
             return cls_scores, bbox_preds
 
-        cls = torch.cat([s.flatten(2) for s in cls_scores], dim=2).permute(0, 2, 1)
-        bboxes = torch.cat(
-            [p.flatten(2) for p in bbox_preds], dim=2
-        ).permute(0, 2, 1)
-        bboxes = torch.sigmoid(bboxes) * self.cfg.img_size
+        # Decode bboxes using distance-based approach
+        decoded_bboxes = []
+        for level_idx, bbox_pred in enumerate(bbox_preds):
+            stride = self.cfg.prior_strides[level_idx]
+
+            cx, cy = self._grid_centers[level_idx]
+            cx, cy = cx.to(bbox_pred.device), cy.to(bbox_pred.device)
+
+            distances = torch.clamp(bbox_pred, min=0) * stride  # [B, 4, H, W]
+            points = torch.stack([cx, cy], dim=-1).unsqueeze(0).expand(
+                distances.shape[0], -1, -1, -1
+            )
+            dist = distances.permute(0, 2, 3, 1)  # [B, H, W, 4]
+            bboxes = distance2bbox(
+                points, dist, (self.cfg.img_size, self.cfg.img_size)
+            )  # [B, H, W, 4]
+            decoded_bboxes.append(bboxes.flatten(1, 2))  # [B, H*W, 4]
+
+        bboxes = torch.cat(decoded_bboxes, dim=1)  # [B, N_total, 4]
+        cls = torch.cat([torch.sigmoid(s).flatten(2) for s in cls_scores], dim=2).permute(0, 2, 1)
+
         return bboxes, torch.zeros(0), torch.zeros(0), cls
 
     def __call__(
@@ -103,6 +122,10 @@ class RTMDet(nn.Module):
 
         tensor = torch.from_numpy(np.array(padded, dtype=np.float32) / 255.0)
         tensor = tensor.permute(2, 0, 1).unsqueeze(0).to(self.device)
+        # Normalize with ImageNet mean/std (required for pretrained weights)
+        mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, 3, 1, 1)
+        tensor = (tensor - mean) / std
 
         self.eval()
         feats = self.backbone(tensor)
@@ -125,23 +148,50 @@ class RTMDet(nn.Module):
         cls_scores: list[Tensor],
         bbox_preds: list[Tensor],
     ) -> tuple[Tensor, Tensor, Tensor]:
-        img_size = self.cfg.img_size
+        device = self.device
 
-        bbox_preds_decoded = (
-            torch.cat([torch.sigmoid(p).flatten(2) for p in bbox_preds], dim=2)
-            * img_size
-        )
-        cls_preds = torch.cat([torch.sigmoid(s).flatten(2) for s in cls_scores], dim=2)
+        decoded_bboxes = []
+        cls_preds_list = []
 
-        bboxes = bbox_preds_decoded[0].permute(1, 0)
-        scores = cls_preds[0]
+        for level_idx, (bbox_pred, cls_score) in enumerate(zip(bbox_preds, cls_scores)):
+            stride = self.cfg.prior_strides[level_idx]
 
+            # Grid centers for this level
+            cx, cy = self._grid_centers[level_idx]
+            cx, cy = cx.to(device), cy.to(device)
+
+            # Decode raw distances: clamp(≥0) * stride -> pixel distances [B, 4, H, W]
+            distances = torch.clamp(bbox_pred, min=0) * stride
+
+            # Build points [1, H, W, 2] and distances [B, H, W, 4]
+            points = torch.stack([cx, cy], dim=-1).unsqueeze(0)
+            dist = distances.permute(0, 2, 3, 1)
+
+            # Convert to corner-format bboxes [B, H, W, 4]
+            bboxes = distance2bbox(points, dist, (self.cfg.img_size, self.cfg.img_size))
+            decoded_bboxes.append(bboxes.flatten(1, 2))
+
+            # Classification: sigmoid -> [B, num_classes, H*W]
+            cls_preds_list.append(torch.sigmoid(cls_score).flatten(2))
+
+        # Concatenate across levels: [B, N_total, 4] and [B, num_classes, N_total]
+        bboxes = torch.cat(decoded_bboxes, dim=1)
+        scores = torch.cat(cls_preds_list, dim=2)
+
+        # Single-image inference: take batch index 0
+        bboxes = bboxes[0]  # [N, 4]
+        scores = scores[0]  # [num_classes, N]
+
+        # Get max score and class per bbox
         scores, class_ids = scores.max(dim=0)
+
+        # Filter by score threshold
         keep = scores > self.cfg.score_threshold
         bboxes = bboxes[keep]
         scores = scores[keep]
         class_ids = class_ids[keep]
 
+        # NMS
         if bboxes.numel() > 0:
             keep = nms(bboxes, scores, self.cfg.nms_iou_threshold)
             keep = keep[: self.cfg.max_num_detections]
@@ -181,8 +231,7 @@ class RTMDet(nn.Module):
 
         for i, (bbox, score, cls) in enumerate(zip(bboxes, scores, classes)):
             x1, y1, x2, y2 = bbox.tolist()
-            x1, y1 = min(x1, x2), min(y1, y2)
-            x2, y2 = max(x1, x2), max(y1, y2)
+            x1, y1, x2, y2 = min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)
             color = colors[cls.item() % len(colors)]
             draw.rectangle(
                 [int(x1), int(y1), int(x2), int(y2)], outline=color, width=2

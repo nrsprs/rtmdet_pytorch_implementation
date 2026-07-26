@@ -21,23 +21,23 @@ class CSPNext(nn.Module):
 
         self.stage1 = nn.Sequential(
             ConvModule(c_in=ch[2], c_out=ch[3], stride=2),
-            CSPLayer(c_in=ch[3], c_out=ch[3], n=depths[0], add=True),
+            CSPLayer(c_in=ch[3], c_out=ch[3], n=depths[0], add=True, use_attention=True),
         )
 
         self.stage2 = nn.Sequential(
             ConvModule(c_in=ch[3], c_out=ch[4], stride=2),
-            CSPLayer(c_in=ch[4], c_out=ch[4], n=depths[1], add=True),
+            CSPLayer(c_in=ch[4], c_out=ch[4], n=depths[1], add=True, use_attention=True),
         )
 
         self.stage3 = nn.Sequential(
             ConvModule(c_in=ch[4], c_out=ch[5], stride=2),
-            CSPLayer(c_in=ch[5], c_out=ch[5], n=depths[2], add=True),
+            CSPLayer(c_in=ch[5], c_out=ch[5], n=depths[2], add=True, use_attention=True),
         )
 
         self.stage4 = nn.Sequential(
             ConvModule(c_in=ch[5], c_out=ch[6], stride=2),
             SPFFBottleneck(c=ch[6]),
-            CSPLayer(c_in=ch[6], c_out=ch[6], n=depths[3], add=False),
+            CSPLayer(c_in=ch[6], c_out=ch[6], n=depths[3], add=False, use_attention=True),
         )
 
     def forward(self, x: Tensor) -> tuple[Tensor, ...]:
