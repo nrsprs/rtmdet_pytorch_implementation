@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
+from PIL import Image, ImageDraw
 from torch import Tensor
 from torchvision.ops import nms
 
@@ -134,6 +134,42 @@ class RTMDet(nn.Module):
             class_ids = class_ids[keep]
 
         return bboxes, scores, class_ids
+
+    def draw_detections(
+        self,
+        image_input: Union[str, Tensor],
+        bboxes: Tensor,
+        scores: Tensor,
+        classes: Tensor,
+    ) -> Image.Image:
+        if isinstance(image_input, str):
+            img = Image.open(image_input).convert("RGB")
+        else:
+            img = Image.fromarray((image_input.cpu().numpy() * 255).astype(np.uint8))
+
+        draw = ImageDraw.Draw(img)
+        colors = [
+            (255, 0, 0),
+            (0, 255, 0),
+            (0, 0, 255),
+            (255, 255, 0),
+            (255, 0, 255),
+            (0, 255, 255),
+            (255, 128, 0),
+            (128, 0, 255),
+            (0, 128, 255),
+            (255, 0, 128),
+        ]
+
+        for i, (bbox, score, cls) in enumerate(zip(bboxes, scores, classes)):
+            x1, y1, x2, y2 = bbox.tolist()
+            x1, y1 = min(x1, x2), min(y1, y2)
+            x2, y2 = max(x1, x2), max(y1, y2)
+            color = colors[cls.item() % len(colors)]
+            draw.rectangle([x1, y1, x2, y2], outline=color, width=2)
+            draw.text((x1 + 4, y1 + 4), f"cls {cls.item()} {score:.2f}", fill=color)
+
+        return img
 
     def _image_to_tensor(self, path: str) -> Tensor:
         img = Image.open(path).convert("RGB")
