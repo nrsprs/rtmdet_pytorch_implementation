@@ -65,44 +65,65 @@ class RTMDet(nn.Module):
         _safe_load_state_dict(self.head, head_sd)
 
     def forward(
-        self,
-        x: Union[str, Tensor],
-        return_logits: bool = False,
-        postprocess: bool = False,
+        self, x: Tensor, return_logits: bool = False
     ) -> Union[
         Tuple[List[Tensor], List[Tensor]],
         Tuple[Tensor, Tensor, Tensor, Tensor],
-        Tuple[Tensor, Tensor, Tensor],
     ]:
-        if isinstance(x, str):
-            x = self._image_to_tensor(x)
-            postprocess = True
-
-        if x.dim() == 3:
-            x = x.unsqueeze(0)
-        x = x.to(self.device)
-
-        if postprocess:
-            self.eval()
-            with torch.no_grad():
-                feats = self.backbone(x)
-                feats = self.neck(feats)
-                cls_scores, bbox_preds = self.head(feats)
-                return self._postprocess(cls_scores, bbox_preds)
-
         feats = self.backbone(x)
         feats = self.neck(feats)
         cls_scores, bbox_preds = self.head(feats)
 
-        if return_logits:
-            cls = torch.cat([s.flatten(2) for s in cls_scores], dim=2).permute(0, 2, 1)
-            bboxes = torch.cat(
-                [p.flatten(2) for p in bbox_preds], dim=2
-            ).permute(0, 2, 1)
-            bboxes = torch.sigmoid(bboxes) * self.cfg.img_size
-            return bboxes, torch.zeros(0), torch.zeros(0), cls
+        if not return_logits:
+            return cls_scores, bbox_preds
 
-        return cls_scores, bbox_preds
+        cls = torch.cat([s.flatten(2) for s in cls_scores], dim=2).permute(0, 2, 1)
+        bboxes = torch.cat(
+            [p.flatten(2) for p in bbox_preds], dim=2
+        ).permute(0, 2, 1)
+        bboxes = torch.sigmoid(bboxes) * self.cfg.img_size
+        return bboxes, torch.zeros(0), torch.zeros(0), cls
+
+    def __call__(
+        self, image_input: Union[str, Tensor], return_logits: bool = False
+    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
+        if isinstance(image_input, str):
+            return self._inference_from_path(image_input)
+
+        return self.forward(image_input, return_logits=return_logits)
+
+    def _inference_from_path(self, path: str) -> Tuple[Tensor, Tensor, Tensor]:
+        img = Image.open(path).convert("RGB")
+        orig_w, orig_h = img.size
+        target = self.cfg.img_size
+
+        scale = target / max(orig_w, orig_h)
+        new_w, new_h = int(orig_w * scale), int(orig_h * scale)
+        img = img.resize((new_w, new_h), resample=Image.Resampling.BICUBIC)
+
+        padded = Image.new("RGB", (target, target), (0, 0, 0))
+        pad_x = (target - new_w) // 2
+        pad_y = (target - new_h) // 2
+        padded.paste(img, (pad_x, pad_y))
+
+        tensor = torch.from_numpy(np.array(padded, dtype=np.float32) / 255.0)
+        tensor = tensor.permute(2, 0, 1).unsqueeze(0).to(self.device)
+
+        self.eval()
+        feats = self.backbone(tensor)
+        feats = self.neck(feats)
+        cls_scores, bbox_preds = self.head(feats)
+
+        bboxes, scores, class_ids = self._postprocess(cls_scores, bbox_preds)
+
+        # Transform from padded target -> original image coordinates
+        bboxes = bboxes.clone()
+        bboxes[:, [0, 2]] = (bboxes[:, [0, 2]] - pad_x) / scale
+        bboxes[:, [1, 3]] = (bboxes[:, [1, 3]] - pad_y) / scale
+        bboxes[:, 0::2] = bboxes[:, 0::2].clamp(0, orig_w)
+        bboxes[:, 1::2] = bboxes[:, 1::2].clamp(0, orig_h)
+
+        return bboxes, scores, class_ids
 
     def _postprocess(
         self,
@@ -145,7 +166,9 @@ class RTMDet(nn.Module):
         if isinstance(image_input, str):
             img = Image.open(image_input).convert("RGB")
         else:
-            img = Image.fromarray((image_input.cpu().numpy() * 255).astype(np.uint8))
+            img = Image.fromarray(
+                (image_input.detach().cpu().numpy() * 255).astype(np.uint8)
+            )
 
         draw = ImageDraw.Draw(img)
         colors = [
@@ -165,24 +188,17 @@ class RTMDet(nn.Module):
             x1, y1, x2, y2 = bbox.tolist()
             x1, y1 = min(x1, x2), min(y1, y2)
             x2, y2 = max(x1, x2), max(y1, y2)
-            # Scale bboxes from model img_size to the original image size
-            w, h = img.size
-            x1, x2 = x1 / self.cfg.img_size * w, x2 / self.cfg.img_size * w
-            y1, y2 = y1 / self.cfg.img_size * h, y2 / self.cfg.img_size * h
             color = colors[cls.item() % len(colors)]
-            draw.rectangle([x1, y1, x2, y2], outline=color, width=2)
-            draw.text((x1 + 4, y1 + 4), f"cls {cls.item()} {score:.2f}", fill=color)
+            draw.rectangle(
+                [int(x1), int(y1), int(x2), int(y2)], outline=color, width=2
+            )
+            draw.text(
+                (int(x1) + 4, int(y1) + 4),
+                f"cls {cls.item()} {score:.2f}",
+                fill=color,
+            )
 
         return img
-
-    def _image_to_tensor(self, path: str) -> Tensor:
-        img = Image.open(path).convert("RGB")
-        img = img.resize(
-            (self.cfg.img_size, self.cfg.img_size),
-            resample=Image.Resampling.BICUBIC,
-        )
-        tensor = torch.from_numpy(np.array(img, dtype=np.float32) / 255.0)
-        return tensor.permute(2, 0, 1)
 
     @property
     def device(self) -> torch.device:
