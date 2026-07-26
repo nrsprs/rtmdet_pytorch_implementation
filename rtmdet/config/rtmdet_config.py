@@ -10,6 +10,11 @@ from rtmdet.typings import PresetName
 class RTMDetConfig(BaseModel):
     """Configuration for the RTMDet model"""
 
+    # ---- Identity ----
+    preset_name: str = Field(
+        "",
+        description="Preset slug (tiny/small/medium/large) used to create this config. Empty for manual configs.",
+    )
     # ---- Scaling  ----
     deepen_factor: float = Field(
         ...,
@@ -65,4 +70,6 @@ class RTMDetConfig(BaseModel):
     @classmethod
     def from_preset(cls, name: PresetName) -> "RTMDetConfig":
         preset_path = (cls._PRESET_DIR / f"rtmdet_{name}.yaml").resolve()
-        return RTMDetConfig(**yaml.safe_load(preset_path.read_text()))
+        cfg = cls(**yaml.safe_load(preset_path.read_text()))
+        cfg.preset_name = name
+        return cfg

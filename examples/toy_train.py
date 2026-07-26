@@ -130,7 +130,7 @@ def main():
 
             optim.zero_grad(set_to_none=True)
 
-            pred_boxes, _, _, pred_logits = model(imgs, return_logits=True)  # type: ignore
+            pred_boxes, _, _, pred_logits = model(imgs, return_logits=True)
 
             B = pred_boxes.shape[0]
 

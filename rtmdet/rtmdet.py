@@ -1,4 +1,5 @@
 
+from pathlib import Path
 from typing import overload
 
 import numpy as np
@@ -32,6 +33,14 @@ class RTMDet(nn.Module):
         # Cache grid centers for bbox decoding (computed once, moved to device at inference)
         self._grid_centers = generate_grid_centers(cfg.img_size, cfg.prior_strides, torch.device("cpu"))
 
+    @staticmethod
+    def _default_device() -> torch.device:
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+
     @classmethod
     def from_preset(
         cls,
@@ -52,7 +61,7 @@ class RTMDet(nn.Module):
         if pretrained:
             model._load_pretrained_weights(name)
 
-        return model
+        return model.to(cls._default_device()).to(cls._default_device())
 
     def _load_pretrained_weights(self, name: PresetName) -> None:
         url = _PRETRAINED_URLS[name]
@@ -66,6 +75,51 @@ class RTMDet(nn.Module):
         _safe_load_state_dict(self.backbone, backbone_sd)
         _safe_load_state_dict(self.neck, neck_sd)
         _safe_load_state_dict(self.head, head_sd)
+
+    def to_file(self, path: str | Path) -> None:
+        """Save the model state dict and config metadata to a .pt file."""
+        path = Path(path)
+        assert self.cfg.preset_name, (
+            "Cannot save model — preset_name is empty. "
+            "Use from_preset() or set cfg.preset_name manually."
+        )
+        checkpoint = {
+            "state_dict": self.state_dict(),
+            "config": {
+                "name": self.cfg.preset_name,
+                "num_classes": self.cfg.num_classes,
+                "img_size": self.cfg.img_size,
+            },
+        }
+        torch.save(checkpoint, str(path))
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> "RTMDet":
+        """Load a model saved by `to_file()`, auto-detecting the architecture."""
+        path = Path(path)
+        checkpoint = torch.load(str(path), map_location="cpu", weights_only=False)
+        sd = checkpoint["state_dict"]
+        config = checkpoint["config"]
+
+        name = config["name"]
+        cfg = RTMDetConfig.from_preset(name)
+        cfg.num_classes = config.get("num_classes", cfg.num_classes)
+        cfg.img_size = config.get("img_size", cfg.img_size)
+
+        model = cls(cfg)
+        model.load_state_dict(sd, strict=True)
+        return model.to(cls._default_device())
+
+    def predict(self, path: str) -> tuple[Tensor, Tensor, Tensor]:
+        """Run single-image inference and return post-processed detections.
+
+        Args:
+            path: Image file path.
+
+        Returns:
+            (bboxes, scores, classes) — filtered & NMS'd detections
+        """
+        return self._inference_from_path(path)
 
     def forward(
         self, x: Tensor, return_logits: bool = False
