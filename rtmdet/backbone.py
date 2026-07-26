@@ -1,7 +1,5 @@
-from typing import Tuple
 
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 from rtmdet.config import RTMDetConfig
 from rtmdet.layers import ConvModule, CSPLayer, SPFFBottleneck
@@ -42,7 +40,7 @@ class CSPNext(nn.Module):
             CSPLayer(c_in=ch[6], c_out=ch[6], n=depths[3], add=False),
         )
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, ...]:
+    def forward(self, x: Tensor) -> tuple[Tensor, ...]:
         x = self.stem(x)
         x = self.stage1(x)
         stride8 = self.stage2(x)

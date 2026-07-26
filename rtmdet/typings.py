@@ -1,6 +1,6 @@
-from typing import Dict, Literal, TypeAlias
+from typing import Literal, TypeAlias
 
 import torch
 
-StateDict: TypeAlias = Dict[str, torch.Tensor]
+StateDict: TypeAlias = dict[str, torch.Tensor]
 PresetName: TypeAlias = Literal["tiny", "small", "medium", "large"]

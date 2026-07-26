@@ -1,10 +1,8 @@
-from typing import List, Tuple, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
 from PIL import Image, ImageDraw
-from torch import Tensor
+from torch import Tensor, nn
 from torchvision.ops import nms
 
 from rtmdet.backbone import CSPNext
@@ -66,10 +64,7 @@ class RTMDet(nn.Module):
 
     def forward(
         self, x: Tensor, return_logits: bool = False
-    ) -> Union[
-        Tuple[List[Tensor], List[Tensor]],
-        Tuple[Tensor, Tensor, Tensor, Tensor],
-    ]:
+    ) -> tuple[list[Tensor], list[Tensor]] | tuple[Tensor, Tensor, Tensor, Tensor]:
         feats = self.backbone(x)
         feats = self.neck(feats)
         cls_scores, bbox_preds = self.head(feats)
@@ -85,14 +80,14 @@ class RTMDet(nn.Module):
         return bboxes, torch.zeros(0), torch.zeros(0), cls
 
     def __call__(
-        self, image_input: Union[str, Tensor], return_logits: bool = False
-    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
+        self, image_input: str | Tensor, return_logits: bool = False
+    ) -> tuple[Tensor, Tensor, Tensor] | tuple[Tensor, Tensor, Tensor, Tensor]:
         if isinstance(image_input, str):
             return self._inference_from_path(image_input)
 
         return self.forward(image_input, return_logits=return_logits)
 
-    def _inference_from_path(self, path: str) -> Tuple[Tensor, Tensor, Tensor]:
+    def _inference_from_path(self, path: str) -> tuple[Tensor, Tensor, Tensor]:
         img = Image.open(path).convert("RGB")
         orig_w, orig_h = img.size
         target = self.cfg.img_size
@@ -127,9 +122,9 @@ class RTMDet(nn.Module):
 
     def _postprocess(
         self,
-        cls_scores: List[Tensor],
-        bbox_preds: List[Tensor],
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+        cls_scores: list[Tensor],
+        bbox_preds: list[Tensor],
+    ) -> tuple[Tensor, Tensor, Tensor]:
         img_size = self.cfg.img_size
 
         bbox_preds_decoded = (
@@ -158,7 +153,7 @@ class RTMDet(nn.Module):
 
     def draw_detections(
         self,
-        image_input: Union[str, Tensor],
+        image_input: str | Tensor,
         bboxes: Tensor,
         scores: Tensor,
         classes: Tensor,

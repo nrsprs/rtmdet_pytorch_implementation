@@ -1,7 +1,5 @@
-from typing import Optional
 
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 
 class ConvModule(nn.Module):
@@ -11,7 +9,7 @@ class ConvModule(nn.Module):
         c_out: int,
         kernel_size: int = 3,
         stride: int = 1,
-        padding: Optional[int] = None,
+        padding: int | None = None,
         groups: int = 1,
     ):
         super().__init__()
@@ -44,7 +42,7 @@ class DWConvModule(nn.Module):
         c_out: int,
         kernel_size: int = 5,
         stride: int = 1,
-        padding: Optional[int] = None,
+        padding: int | None = None,
     ):
         super().__init__()
         self.depthwise_conv = ConvModule(

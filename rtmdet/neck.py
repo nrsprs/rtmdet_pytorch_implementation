@@ -1,8 +1,6 @@
-from typing import Tuple
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 from rtmdet.config import RTMDetConfig
 from rtmdet.layers import ConvModule, CSPLayer
@@ -84,7 +82,7 @@ class CSPNeXtPAFPN(nn.Module):
                 )
             )
 
-    def forward(self, inputs: Tuple[Tensor, ...]) -> Tuple[Tensor, ...]:
+    def forward(self, inputs: tuple[Tensor, ...]) -> tuple[Tensor, ...]:
         # --- Top-down path ---
         inner_outs = [inputs[-1]]
         for i in range(self.num_levels - 1, 0, -1):

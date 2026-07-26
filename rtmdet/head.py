@@ -1,7 +1,4 @@
-from typing import List, Tuple
-
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 from rtmdet.config import RTMDetConfig
 from rtmdet.layers import ConvModule
@@ -59,8 +56,7 @@ class RTMDetHead(nn.Module):
         self.rtm_cls: nn.ModuleList = nn.ModuleList(rtm_cls)
         self.rtm_reg: nn.ModuleList = nn.ModuleList(rtm_reg)
 
-    def forward(self, x: Tuple[Tensor, ...]) -> Tuple[List[Tensor], ...]:
-        """ """
+    def forward(self, x: tuple[Tensor, ...]) -> tuple[list[Tensor], ...]:
         cls_scores, bbox_preds = [], []
 
         for i, feat in enumerate(x):

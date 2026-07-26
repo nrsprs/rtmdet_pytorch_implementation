@@ -1,15 +1,15 @@
-from typing import List, overload
+from typing import overload
 
 
 @overload
 def apply_factor(values: int, factor: float) -> int: ...
 @overload
-def apply_factor(values: List[int], factor: float) -> list[int]: ...
+def apply_factor(values: list[int], factor: float) -> list[int]: ...
 
 
 def apply_factor(values, factor: float):
     def _scale(v: int) -> int:
-        return max(1, int(round(v * factor)))
+        return max(1, round(v * factor))
 
     if isinstance(values, int):
         return _scale(values)

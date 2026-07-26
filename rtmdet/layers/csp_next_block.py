@@ -1,5 +1,4 @@
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 from rtmdet.layers.conv_module import ConvModule, DWConvModule
 
