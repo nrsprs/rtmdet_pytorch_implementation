@@ -1,4 +1,6 @@
 
+from typing import overload
+
 import numpy as np
 import torch
 from PIL import Image, ImageDraw
@@ -97,6 +99,16 @@ class RTMDet(nn.Module):
         cls = torch.cat([torch.sigmoid(s).flatten(2) for s in cls_scores], dim=2).permute(0, 2, 1)
 
         return bboxes, torch.zeros(0), torch.zeros(0), cls
+
+    @overload
+    def __call__(
+        self, image_input: str, return_logits: bool = False
+    ) -> tuple[Tensor, Tensor, Tensor]: ...
+
+    @overload
+    def __call__(
+        self, image_input: Tensor, return_logits: bool = False
+    ) -> tuple[list[Tensor], list[Tensor]] | tuple[Tensor, Tensor, Tensor, Tensor]: ...
 
     def __call__(
         self, image_input: str | Tensor, return_logits: bool = False
