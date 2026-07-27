@@ -1,7 +1,7 @@
 import pytest
 from PIL import Image, ImageDraw
 
-from rtmdet import RTMDet, RTMDetConfig, RotRTMDet, RotRTMDetConfig
+from rtmdet import RotRTMDet, RotRTMDetConfig, RTMDet, RTMDetConfig
 
 
 @pytest.fixture(scope="session")

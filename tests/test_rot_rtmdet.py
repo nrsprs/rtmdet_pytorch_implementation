@@ -117,7 +117,7 @@ class TestCall:
         rot_tiny_model.eval()
         x = torch.randn(1, 3, 640, 640)
         result = rot_tiny_model(x)
-        cls_scores, bbox_preds, angle_preds = result
+        cls_scores, _, _ = result
         assert isinstance(cls_scores, list)
 
     def test_call_with_tensor_return_logits(self, rot_tiny_model):
