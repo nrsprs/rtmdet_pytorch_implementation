@@ -1,7 +1,7 @@
 import pytest
 from PIL import Image, ImageDraw
 
-from rtmdet import RTMDet, RTMDetConfig
+from rtmdet import RTMDet, RTMDetConfig, RotRTMDet, RotRTMDetConfig
 
 
 @pytest.fixture(scope="session")
@@ -59,6 +59,36 @@ def custom_config():
 @pytest.fixture(scope="session")
 def custom_model(custom_config):
     return RTMDet(custom_config).to("cpu")
+
+
+@pytest.fixture(scope="session")
+def rot_tiny_config():
+    return RotRTMDetConfig.from_preset("tiny")
+
+
+@pytest.fixture(scope="session")
+def rot_small_config():
+    return RotRTMDetConfig.from_preset("small")
+
+
+@pytest.fixture(scope="session")
+def rot_medium_config():
+    return RotRTMDetConfig.from_preset("medium")
+
+
+@pytest.fixture(scope="session")
+def rot_large_config():
+    return RotRTMDetConfig.from_preset("large")
+
+
+@pytest.fixture(scope="session")
+def rot_all_configs(rot_tiny_config, rot_small_config, rot_medium_config, rot_large_config):
+    return [rot_tiny_config, rot_small_config, rot_medium_config, rot_large_config]
+
+
+@pytest.fixture(scope="session")
+def rot_tiny_model(rot_tiny_config):
+    return RotRTMDet(rot_tiny_config).to("cpu")
 
 
 @pytest.fixture

@@ -20,6 +20,7 @@ dependencies = [
     "torchvision>=0.23.0",
     "ty>=0.0.63",
     "pytest>=8.0",
+    "shapely>=2.0",
 ]
 
 [project.urls]

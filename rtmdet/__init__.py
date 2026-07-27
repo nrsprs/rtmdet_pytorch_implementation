@@ -1,4 +1,5 @@
-from .config import RTMDetConfig
+from .config import RotRTMDetConfig, RTMDetConfig
+from .rot_rtmdet import RotRTMDet
 from .rtmdet import RTMDet
 
-__all__ = ["RTMDet", "RTMDetConfig"]
+__all__ = ["RTMDet", "RTMDetConfig", "RotRTMDet", "RotRTMDetConfig"]

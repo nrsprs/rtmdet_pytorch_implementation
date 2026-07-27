@@ -1,0 +1,4 @@
+deepen_factor: 1.0
+widen_factor: 1.0
+exp_on_reg: true
+neck_out_channels: 256
